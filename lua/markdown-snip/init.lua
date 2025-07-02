@@ -66,6 +66,60 @@ local function get_extension_from_lang(fence)
     return ".css"
   elseif lang == "json" then
     return ".json"
+  elseif lang == "c" then
+    return ".c"
+  elseif lang == "cpp" or lang == "c++" or lang == "cxx" then
+    return ".cpp"
+  elseif lang == "java" then
+    return ".java"
+  elseif lang == "cs" or lang == "csharp" then
+    return ".cs"
+  elseif lang == "go" or lang == "golang" then
+    return ".go"
+  elseif lang == "rs" or lang == "rust" then
+    return ".rs"
+  elseif lang == "php" then
+    return ".php"
+  elseif lang == "rb" or lang == "ruby" then
+    return ".rb"
+  elseif lang == "swift" then
+    return ".swift"
+  elseif lang == "kt" or lang == "kotlin" then
+    return ".kt"
+  elseif lang == "scala" then
+    return ".scala"
+  elseif lang == "r" then
+    return ".r"
+  elseif lang == "m" or lang == "matlab" then
+    return ".m"
+  elseif lang == "sh" or lang == "bash" or lang == "shell" then
+    return ".sh"
+  elseif lang == "ps1" or lang == "powershell" then
+    return ".ps1"
+  elseif lang == "bat" or lang == "batch" then
+    return ".bat"
+  elseif lang == "sql" then
+    return ".sql"
+  elseif lang == "xml" then
+    return ".xml"
+  elseif lang == "yaml" or lang == "yml" then
+    return ".yml"
+  elseif lang == "toml" then
+    return ".toml"
+  elseif lang == "ini" then
+    return ".ini"
+  elseif lang == "conf" or lang == "config" then
+    return ".conf"
+  elseif lang == "dockerfile" or lang == "docker" then
+    return "Dockerfile"
+  elseif lang == "makefile" or lang == "make" then
+    return "Makefile"
+  elseif lang == "vim" or lang == "viml" then
+    return ".vim"
+  elseif lang == "md" or lang == "markdown" then
+    return ".md"
+  elseif lang == "tex" or lang == "latex" then
+    return ".tex"
   else
     return ".txt"
   end
@@ -255,14 +309,16 @@ end
 function M.insert_file_reference()
   local cwd = vim.fn.expand("%:p:h")
   
-  -- Try fd first, fallback to find
+  -- Try fd first, then rg, then find
   local cmd
   if vim.fn.executable("fd") == 1 then
     cmd = {"fd", "--type", "f", ".", cwd}
+  elseif vim.fn.executable("rg") == 1 then
+    cmd = {"rg", "--files", cwd}
   elseif vim.fn.executable("find") == 1 then
     cmd = {"find", cwd, "-type", "f"}
   else
-    vim.notify("No file finder available (fd or find)", vim.log.levels.ERROR)
+    vim.notify("No file finder available (fd, rg, or find)", vim.log.levels.ERROR)
     return
   end
   
