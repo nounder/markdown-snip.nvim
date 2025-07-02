@@ -229,7 +229,9 @@ end
 
 function M.goto_file()
   local md_bufnr = vim.api.nvim_get_current_buf()
-  local lnum = vim.api.nvim_win_get_cursor(0)[1]
+  local cursor_pos = vim.api.nvim_win_get_cursor(0)
+  local lnum = cursor_pos[1]
+  local col = cursor_pos[2]
 
   local link_path = get_link_under_cursor()
   if link_path then
@@ -257,6 +259,17 @@ function M.goto_file()
 
   vim.cmd("edit " .. vim.fn.fnameescape(temp_file))
   local code_bufnr = vim.api.nvim_get_current_buf()
+
+  -- Calculate and set cursor position relative to code block content
+  if lnum >= fence_info.content_start and lnum <= fence_info.content_end then
+    local relative_line = lnum - fence_info.content_start + 1
+    local code_line_count = vim.api.nvim_buf_line_count(code_bufnr)
+    
+    -- Ensure we don't go beyond the actual content
+    if relative_line <= code_line_count then
+      vim.api.nvim_win_set_cursor(0, {relative_line, col})
+    end
+  end
 
   vim.api.nvim_buf_set_option(code_bufnr, "bufhidden", "wipe")
 
