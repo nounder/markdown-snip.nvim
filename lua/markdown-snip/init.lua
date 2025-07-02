@@ -252,19 +252,51 @@ function M.goto_file()
   })
 end
 
-function M.insert_file_reference_snacks()
-  require("snacks").picker.files({
-    cwd = vim.fn.expand("%:p:h"),
-    confirm = function(picker, item)
-      picker:close()
-      if item then
-        local relative_path = vim.fn.fnamemodify(item.file, ":.")
-        local filename = vim.fn.fnamemodify(item.file, ":t")
-        local link_text = string.format("[%s](%s)", filename, relative_path)
-        vim.api.nvim_put({ link_text }, "c", true, true)
-      end
-    end,
-  })
+function M.insert_file_reference()
+  local cwd = vim.fn.expand("%:p:h")
+  
+  -- Try fd first, fallback to find
+  local cmd
+  if vim.fn.executable("fd") == 1 then
+    cmd = {"fd", "--type", "f", ".", cwd}
+  elseif vim.fn.executable("find") == 1 then
+    cmd = {"find", cwd, "-type", "f"}
+  else
+    vim.notify("No file finder available (fd or find)", vim.log.levels.ERROR)
+    return
+  end
+  
+  vim.system(cmd, {}, function(result)
+    if result.code ~= 0 then
+      vim.notify("Failed to list files", vim.log.levels.ERROR)
+      return
+    end
+    
+    local files = vim.split(result.stdout, "\n", { trimempty = true })
+    local file_list = {}
+    
+    for _, file in ipairs(files) do
+      local relative_path = vim.fn.fnamemodify(file, ":.")
+      table.insert(file_list, relative_path)
+    end
+    
+    if #file_list == 0 then
+      vim.notify("No files found", vim.log.levels.WARN)
+      return
+    end
+    
+    vim.schedule(function()
+      vim.ui.select(file_list, {
+        prompt = "Select file to reference:",
+      }, function(choice)
+        if choice then
+          local filename = vim.fn.fnamemodify(choice, ":t")
+          local link_text = string.format("[%s](%s)", filename, choice)
+          vim.api.nvim_put({ link_text }, "c", true, true)
+        end
+      end)
+    end)
+  end)
 end
 
 return M
