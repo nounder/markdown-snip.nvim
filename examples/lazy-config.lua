@@ -4,6 +4,9 @@
 return {
 	"nounder/markdown-snip.nvim",
 	ft = "markdown",
+	init = function()
+		require("markdown-snip").setup_completion()
+	end,
 	keys = {
 		{
 			"gd",

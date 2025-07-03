@@ -264,10 +264,10 @@ function M.goto_file()
   if lnum >= fence_info.content_start and lnum <= fence_info.content_end then
     local relative_line = lnum - fence_info.content_start + 1
     local code_line_count = vim.api.nvim_buf_line_count(code_bufnr)
-    
+
     -- Ensure we don't go beyond the actual content
     if relative_line <= code_line_count then
-      vim.api.nvim_win_set_cursor(0, {relative_line, col})
+      vim.api.nvim_win_set_cursor(0, { relative_line, col })
     end
   end
 
@@ -321,39 +321,39 @@ end
 
 function M.insert_file_reference()
   local cwd = vim.fn.expand("%:p:h")
-  
+
   -- Try fd first, then rg, then find
   local cmd
   if vim.fn.executable("fd") == 1 then
-    cmd = {"fd", "--type", "f", ".", cwd}
+    cmd = { "fd", "--type", "f", ".", cwd }
   elseif vim.fn.executable("rg") == 1 then
-    cmd = {"rg", "--files", cwd}
+    cmd = { "rg", "--files", cwd }
   elseif vim.fn.executable("find") == 1 then
-    cmd = {"find", cwd, "-type", "f"}
+    cmd = { "find", cwd, "-type", "f" }
   else
     vim.notify("No file finder available (fd, rg, or find)", vim.log.levels.ERROR)
     return
   end
-  
+
   vim.system(cmd, {}, function(result)
     if result.code ~= 0 then
       vim.notify("Failed to list files", vim.log.levels.ERROR)
       return
     end
-    
+
     local files = vim.split(result.stdout, "\n", { trimempty = true })
     local file_list = {}
-    
+
     for _, file in ipairs(files) do
       local relative_path = vim.fn.fnamemodify(file, ":.")
       table.insert(file_list, relative_path)
     end
-    
+
     if #file_list == 0 then
       vim.notify("No files found", vim.log.levels.WARN)
       return
     end
-    
+
     vim.schedule(function()
       vim.ui.select(file_list, {
         prompt = "Select file to reference:",
@@ -368,4 +368,14 @@ function M.insert_file_reference()
   end)
 end
 
+function M.setup_completion()
+  vim.api.nvim_create_autocmd("FileType", {
+    pattern = "markdown",
+    callback = function()
+      vim.bo.omnifunc = "v:lua.require'markdown-snip.completion'.omnifunc"
+    end,
+  })
+end
+
 return M
+
