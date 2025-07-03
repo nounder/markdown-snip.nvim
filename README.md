@@ -14,5 +14,7 @@ Type `[[path]]`, `[text](path)`, or `@path` to trigger file completion from your
 
 ---
 
-See `examples/lazy-config.lua` for sample LAzy configuration.
+See `examples/lazy-config.lua` for sample Lazy configuration.
+
+If you use `blink.cmp` add omni to your default sources as shown in `examples/lazy-blink.lua`
 
