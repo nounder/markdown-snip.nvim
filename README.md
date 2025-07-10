@@ -12,6 +12,8 @@ Position cursor in a markdown code block and press `gd` to edit it in a dedicate
 
 Type `[[path]]`, `[text](path)`, or `@path` to trigger file completion from your project directory using `fd`, `rg`, or `find` (respects `.gitignore`).
 
+![File auto-completion](./doc/cmp.gif)
+
 ---
 
 See `examples/lazy-config.lua` for sample Lazy configuration.
