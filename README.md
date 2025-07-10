@@ -8,9 +8,19 @@ Useful for writing AI specs and documentation.
 
 Position cursor in a markdown code block and press `gd` to edit it in a dedicated buffer with full LSP support, auto-completion, and your project's configuration.
 
+Buffer contents will be automatically synced with your markdown file.
+
+![Code snippets editing](./doc/gd.gif)
+
 ## File Auto-completion
 
-Type `[[path]]`, `[text](path)`, or `@path` to trigger file completion from your project directory using `fd`, `rg`, or `find` (respects `.gitignore`).
+Auto-complete works for following syntax:
+
+ - `[[path]]`
+ - `[text](path)`
+ - `@path` 
+
+One of following commands are used: `fd`, `rg`, or `find`
 
 ![File auto-completion](./doc/cmp.gif)
 
