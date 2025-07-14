@@ -255,10 +255,16 @@ function M.goto_file()
 
   local code_content = get_code_block_content(md_bufnr, fence_info)
 
-  vim.fn.writefile(code_content, temp_file)
-
-  vim.cmd("edit " .. vim.fn.fnameescape(temp_file))
-  local code_bufnr = vim.api.nvim_get_current_buf()
+  -- Create buffer with filename but don't write to disk
+  local code_bufnr = vim.api.nvim_create_buf(false, false)
+  vim.api.nvim_buf_set_name(code_bufnr, temp_file)
+  vim.api.nvim_buf_set_lines(code_bufnr, 0, -1, false, code_content)
+  vim.api.nvim_set_current_buf(code_bufnr)
+  
+  -- Trigger filetype detection and LSP attachment
+  vim.api.nvim_buf_call(code_bufnr, function()
+    vim.cmd("doautocmd BufRead")
+  end)
 
   -- Calculate and set cursor position relative to code block content
   if lnum >= fence_info.content_start and lnum <= fence_info.content_end then
@@ -271,18 +277,34 @@ function M.goto_file()
     end
   end
 
+  -- Set buffer options to prevent disk persistence while allowing LSP
   vim.api.nvim_buf_set_option(code_bufnr, "bufhidden", "wipe")
+  vim.api.nvim_buf_set_option(code_bufnr, "swapfile", false)
+  vim.api.nvim_buf_set_option(code_bufnr, "backup", false)
+  vim.api.nvim_buf_set_option(code_bufnr, "writebackup", false)
+  vim.api.nvim_buf_set_option(code_bufnr, "autowrite", false)       -- prevents automatic saving when switching buffers/windows
+  vim.api.nvim_buf_set_option(code_bufnr, "autowriteall", false)    -- prevents automatic saving on any buffer change event
+  vim.api.nvim_buf_set_option(code_bufnr, "modified", false)        -- marks buffer as unchanged to avoid save prompts on exit
+  vim.api.nvim_buf_set_option(code_bufnr, "modifiable", true)       -- allows editing the buffer content
 
-  vim.api.nvim_create_autocmd("BufWritePost", {
+  -- Override write commands to prevent disk persistence
+  vim.api.nvim_buf_set_keymap(code_bufnr, "n", "<cmd>w<cr>", "", { noremap = true, silent = true })
+  vim.api.nvim_buf_set_keymap(code_bufnr, "n", ":w<cr>", "", { noremap = true, silent = true })
+  
+  -- Block BufWriteCmd to prevent any write attempts
+  vim.api.nvim_create_autocmd("BufWriteCmd", {
     buffer = code_bufnr,
-    callback = function(args)
-      local sync_info = sync_buffers[args.buf]
-      if sync_info and vim.api.nvim_buf_is_valid(sync_info.md_bufnr) then
-        sync_to_markdown(args.buf, sync_info.md_bufnr, sync_info.fence_info)
-        vim.api.nvim_buf_call(sync_info.md_bufnr, function()
-          vim.cmd("write")
-        end)
-      end
+    callback = function()
+      -- Do nothing - prevents writing to disk
+      return true
+    end,
+  })
+  
+  -- Keep buffer marked as unmodified to prevent save prompts
+  vim.api.nvim_create_autocmd({"TextChanged", "TextChangedI"}, {
+    buffer = code_bufnr,
+    callback = function()
+      vim.api.nvim_buf_set_option(code_bufnr, "modified", false)
     end,
   })
 
@@ -293,6 +315,7 @@ function M.goto_file()
   sync_buffers[code_bufnr] = {
     md_bufnr = md_bufnr,
     fence_info = fence_info,
+    last_content = table.concat(code_content, "\n"),
   }
 
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
@@ -300,7 +323,11 @@ function M.goto_file()
     callback = function()
       local sync_info = sync_buffers[code_bufnr]
       if sync_info and vim.api.nvim_buf_is_valid(sync_info.md_bufnr) then
-        sync_to_markdown(code_bufnr, sync_info.md_bufnr, sync_info.fence_info)
+        local current_content = table.concat(vim.api.nvim_buf_get_lines(code_bufnr, 0, -1, false), "\n")
+        if current_content ~= sync_info.last_content then
+          sync_to_markdown(code_bufnr, sync_info.md_bufnr, sync_info.fence_info)
+          sync_info.last_content = current_content
+        end
       end
     end,
   })
@@ -311,9 +338,6 @@ function M.goto_file()
       sync_buffers[code_bufnr] = nil
       if current_code_buffer == code_bufnr then
         current_code_buffer = nil
-      end
-      if vim.fn.filereadable(temp_file) == 1 then
-        vim.fn.delete(temp_file)
       end
     end,
   })
