@@ -1,29 +1,47 @@
 local M = {}
 
-local function get_files_in_directory(dir)
+local function get_files_in_directory(dir, target_dir)
   local files = {}
-  local cmd
+  local search_dir = target_dir and (dir .. "/" .. target_dir) or dir
 
+  if not vim.fn.isdirectory(search_dir) then
+    return files
+  end
+
+  local cmd
   if vim.fn.executable("fd") == 1 then
-    cmd = { "fd", "--type", "f", ".", dir }
+    cmd = { "fd", "--type", "f", "." }
   elseif vim.fn.executable("rg") == 1 then
-    cmd = { "rg", "--files", dir }
+    cmd = { "rg", "--files" }
   elseif vim.fn.executable("find") == 1 then
-    cmd = { "find", dir, "-type", "f" }
+    cmd = { "find", ".", "-type", "f" }
   else
     return files
   end
 
-  local result = vim.system(cmd):wait()
+  local result = vim.system(cmd, { cwd = search_dir }):wait()
   if result.code == 0 then
     local file_list = vim.split(result.stdout, "\n", { trimempty = true })
     for _, file in ipairs(file_list) do
-      local relative_path = vim.fn.fnamemodify(file, ":.")
+      local relative_path = file:gsub("^%./", "")
       table.insert(files, relative_path)
     end
   end
 
   return files
+end
+
+local function extract_directory_from_prefix(prefix)
+  if prefix == "" then
+    return nil
+  end
+  
+  local dir_part = prefix:match("^([^/]+)/")
+  if dir_part then
+    return dir_part
+  end
+  
+  return nil
 end
 
 local function get_current_context()
@@ -127,16 +145,27 @@ function M.omnifunc(findstart, base)
     end
 
     local cwd = vim.fn.expand("%:p:h")
-    local files = get_files_in_directory(cwd)
+    local target_dir = extract_directory_from_prefix(context.prefix)
+    local files = get_files_in_directory(cwd, target_dir)
     local items = {}
 
+    local search_base = base
+    if target_dir then
+      search_base = base:gsub("^" .. vim.pesc(target_dir .. "/"), "")
+    end
+
     for _, file in ipairs(files) do
-      if base == "" or file:lower():find(base:lower(), 1, true) then
+      local display_path = file
+      if target_dir then
+        display_path = target_dir .. "/" .. file
+      end
+      
+      if search_base == "" or file:lower():find(search_base:lower(), 1, true) then
         table.insert(items, {
-          word = file,
-          abbr = file,
+          word = display_path,
+          abbr = display_path,
           kind = "File",
-          info = "File: " .. file,
+          info = "File: " .. display_path,
         })
       end
     end
